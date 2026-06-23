@@ -6,12 +6,17 @@ class_name SunshineCloudsGD
 
 
 @export_group("Basic Settings")
+@export_range(0, 10) var cloud_scale : float = 1.0
 @export_range(0, 1) var clouds_coverage : float = 0.874
 @export_range(0, 20) var clouds_density : float = 0.14
 @export_range(0, 2) var atmospheric_density : float = 0.503
 @export_range(0, 10) var lighting_density : float = 0.982
 @export_range(0, 1) var fog_effect_ground : float = 1.0
 @export_range(0, 1) var use_environment_fog : float = 0.0
+
+@export_subgroup("Planet", "planet")
+@export var planet_radius : float = 50.0
+@export var planet_position : Vector3 = Vector3.ZERO
 
 @export_subgroup("Colors")
 @export_range(0, 1) var clouds_anisotropy : float = 0.16
@@ -500,7 +505,7 @@ func _render_callback(effect_callback_type, render_data):
 					#reflections
 					accumulation_textures.append(rd.texture_create(base_colorformat, RDTextureView.new(), [blankImageData]))
 					
-					general_data_buffer = rd.uniform_buffer_create(256)
+					general_data_buffer = rd.uniform_buffer_create(288)
 					
 					var depthformat : RDTextureFormat = rd.texture_get_format(depth_image)
 					depthformat.width = new_size.x
@@ -839,8 +844,8 @@ func retrieve_position_queries(data : PackedByteArray):
 			#self.effect_callback_type = CompositorEffect.EFFECT_CALLBACK_TYPE_PRE_TRANSPARENT
 
 func update_matrices(camera_tr, view_proj, new_size: Vector2i):
-	if general_data.size() != 256: #64 * 4 bytes for each float = 256.
-		general_data.resize(256)
+	if general_data.size() != 288: #64 * 4 bytes for each float = 256.
+		general_data.resize(288)
 	
 	var idx = 0
 	filter_index += 1
@@ -1039,6 +1044,16 @@ func update_matrices(camera_tr, view_proj, new_size: Vector2i):
 	#general_data.encode_float(idx, last_size.y); idx += 4
 	#general_data.encode_float(idx, 0.0); idx += 4
 	#general_data.encode_float(idx, 0.0); idx += 4
+	
+	general_data.encode_float(idx, 0.0); idx += 4
+	general_data.encode_float(idx, 0.0); idx += 4
+	general_data.encode_float(idx, 0.0); idx += 4
+	general_data.encode_float(idx, cloud_scale * 0.01); idx += 4
+	
+	general_data.encode_float(idx, planet_position.x); idx += 4
+	general_data.encode_float(idx, planet_position.y); idx += 4
+	general_data.encode_float(idx, planet_position.z); idx += 4
+	general_data.encode_float(idx, planet_radius); idx += 4
 	
 	# Copy to byte buffer
 	rd.buffer_update(general_data_buffer, 0, general_data.size(), general_data)

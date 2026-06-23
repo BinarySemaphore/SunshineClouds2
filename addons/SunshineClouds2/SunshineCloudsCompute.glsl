@@ -94,6 +94,11 @@ float rand(vec2 co){
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+float alt_from_pos(vec3 pos) {
+	vec3 rel_pos = pos - genericData.data.planet_pos;
+	return clamp(length(rel_pos) - genericData.data.planet_radius, 0.0, 10000.0);
+}
+
 float get_dither_value(vec2 pixel) {
     int x = int(pixel.x - 4.0 * floor(pixel.x / 4.0));
     int y = int(pixel.y - 4.0 * floor(pixel.y / 4.0));
@@ -114,7 +119,7 @@ float Powder (float dist, float absorption) {
 
 float HenyeyGreenstein(float g, float costh)
 {
-    return (1.0 - g * g) / (4.0 * PI * pow(1.0 + g * g - 2.0 * g * costh, 3.0/2.0));
+    return (1.0 - g * g) / (4.0 * genericData.data.scale * PI * pow(1.0 + g * g - 2.0 * g * costh, 3.0/2.0));
 }
 
 bool renderBayer(ivec2 fragCoord, int framecount)
@@ -155,7 +160,8 @@ float sampleScene(
 	float lod, 
 	bool ambientsample)
 	{
-	float clampedWorldHeight = remap(worldPosition.y, cloudfloor, cloudceiling, 0.0, 1.0);
+	float altitude = alt_from_pos(worldPosition);
+	float clampedWorldHeight = remap(altitude, cloudfloor, cloudceiling, 0.0, 1.0);
 	vec4 gradientSample = texture(heightmask, vec2(clampedWorldHeight, 0.5)).rgba;
 	
 
@@ -210,7 +216,8 @@ float sampleSceneCoarse(
 	float coverage,
 	float lod)
 	{
-	float clampedWorldHeight = remap(worldPosition.y, cloudfloor, cloudceiling, 0.0, 1.0);
+	float altitude = alt_from_pos(worldPosition);
+	float clampedWorldHeight = remap(altitude, cloudfloor, cloudceiling, 0.0, 1.0);
 	vec4 gradientSample = texture(heightmask, vec2(clampedWorldHeight, 0.5)).rgba;
 
 	float edgeFade = min(smoothstep(0.0, 0.1, clampedWorldHeight), smoothstep(1.0, 0.9, clampedWorldHeight));
@@ -270,8 +277,9 @@ float sampleLighting(
 		traveledDistance = mix(eachShortStep, actualDistance, clamp(quadraticOut(i / stepCountFloat), 0.0, 1.0));
 		curPos = worldPosition + sunDirection * traveledDistance;
 
-		if (density < 1.0 && clamp(curPos.y, cloudfloor, cloudceiling) == curPos.y){
-			heightGradient = remap(curPos.y, cloudfloor, cloudceiling, 0.0, 1.0);
+		float altitude = alt_from_pos(curPos);
+		if (density < 1.0 && clamp(altitude, cloudfloor, cloudceiling) == altitude){
+			heightGradient = remap(altitude, cloudfloor, cloudceiling, 0.0, 1.0);
 			
 			heightGradient = clamp(smoothstep(sunUpValue - 0.1, sunUpValue, heightGradient), 0.0, 1.0);
 			float extraLargeShape = texture(extra_large_noise, (curPos.xz - extralargeNoisePos.xz) / extralargenoisescale).a;
@@ -423,7 +431,7 @@ void main() {
 	}
 	
 	vec2 depthUV = (uv + 0.5) / vec2(size);
-	float depth = texture(depth_image, depthUV).r;
+	float depth = texture(depth_image, depthUV).r * genericData.data.scale;
 
 	vec4 view = scene_data_block.data.inv_projection_matrix * vec4(depthUV*2.0-1.0,depth,1.0);
 	view.xyz /= view.w;
@@ -432,6 +440,7 @@ void main() {
 	if (linear_depth >= scene_data_block.data.z_far){ 
 		linear_depth *= 100.0;
 	}
+	linear_depth *= genericData.data.scale;
 	
 	// Convert screen coordinates to normalized device coordinates
 	vec2 clipUV = vec2(depthUV.x, depthUV.y);
@@ -486,22 +495,22 @@ void main() {
 	int directionalLightCount = int(genericData.data.directionalLightsCount);
 	int pointLightCount = int(genericData.data.pointLightsCount);
 
-	vec3 extralargeNoisePos = genericData.data.extralargenoiseposition;
-	vec3 largeNoisePos = genericData.data.largenoiseposition;
-	vec3 mediumNoisePos = genericData.data.mediumnoiseposition;
-	vec3 smallNoisePos = genericData.data.smallnoiseposition;
+	vec3 extralargeNoisePos = genericData.data.extralargenoiseposition * genericData.data.scale;
+	vec3 largeNoisePos = genericData.data.largenoiseposition * genericData.data.scale;
+	vec3 mediumNoisePos = genericData.data.mediumnoiseposition * genericData.data.scale;
+	vec3 smallNoisePos = genericData.data.smallnoiseposition * genericData.data.scale;
 
-	float extralargenoiseScale = genericData.data.extralargenoisescale;
-	float largenoiseScale = genericData.data.large_noise_scale;
-	float mediumnoiseScale = genericData.data.medium_noise_scale;
-	float smallnoiseScale = genericData.data.small_noise_scale;
+	float extralargenoiseScale = genericData.data.extralargenoisescale * genericData.data.scale;
+	float largenoiseScale = genericData.data.large_noise_scale * genericData.data.scale;
+	float mediumnoiseScale = genericData.data.medium_noise_scale * genericData.data.scale;
+	float smallnoiseScale = genericData.data.small_noise_scale * genericData.data.scale;
 
-	float minstep = genericData.data.min_step_distance;
-	float maxstep = genericData.data.max_step_distance;
+	float minstep = genericData.data.min_step_distance * genericData.data.scale;
+	float maxstep = genericData.data.max_step_distance * genericData.data.scale;
 	
 
-	float curlPower = genericData.data.curlPower;
-	float lightingStepDistance = genericData.data.lighting_step_distance;
+	float curlPower = genericData.data.curlPower * genericData.data.scale;
+	float lightingStepDistance = genericData.data.lighting_step_distance * genericData.data.scale;
 	float cloudfloor = genericData.data.cloud_floor;
 	float cloudceiling = genericData.data.cloud_ceiling;
 
@@ -539,6 +548,7 @@ void main() {
 	vec4 currentColorAccumilation = vec4(0.0);
 	vec4 currentDataAccumilation = vec4(0.0);
 
+	float dir_rel_planet = dot(raydirection, normalize(rayOrigin - genericData.data.planet_pos));
 
 
 
@@ -668,7 +678,7 @@ void main() {
 
 	if (samplePosCount > 0 && uv == ivec2(0)){
 		for (int i = 0; i < samplePosCount; i++){
-			curPos = SamplePoints[i].xyz;
+			curPos = SamplePoints[i].xyz * genericData.data.scale;
 			vec4 maskSample = texture(extra_large_noise, (curPos.xz - extralargeNoisePos.xz) / extralargenoiseScale);
 			//ceilingSample = mix(halfCeiling, cloudceiling, maskSample.a);
 			//ceilingSample = cloudceiling;
@@ -692,7 +702,9 @@ void main() {
 		
 		//sampleAtmospherics(curPos, atmosphericHeight, newStep, Rayleighscaleheight, Miescaleheight, RayleighScatteringCoef, MieScatteringCoef, atmosphericDensity, density, totalRlh, totalMie, iOdRlh, iOdMie); 
 		atmoSamples += 1.0;
-		if (clamp(curPos.y, cloudfloor, cloudceiling) == curPos.y){
+		float altitude = alt_from_pos(curPos);
+		if (clamp(altitude, cloudfloor, cloudceiling) == altitude){
+		// if (clamp(curPos.y, cloudfloor, cloudceiling) == curPos.y){
 
 			curLod = 1.0 - clamp(traveledDistance / lodMaxDistance, 0.0, 1.0);
 			// newdensity = sampleSceneCoarse(largeNoisePos, curPos, cloudceiling, cloudfloor, maskSample.a, largenoiseScale, coverage, curLod);
@@ -811,7 +823,7 @@ void main() {
 			}
 		}
 		else{
-			if (min(curPos.y - cloudceiling, raydirection.y) > 0.0 || max(curPos.y - cloudfloor, raydirection.y) < 0.0){
+			if (min(altitude - cloudceiling, dir_rel_planet) > 0.0 || max(altitude - cloudfloor, dir_rel_planet) < 0.0){
 				
 				traveledDistance = min(maxTheoreticalStep, linear_depth);
 				curPos = rayOrigin + raydirection * traveledDistance;

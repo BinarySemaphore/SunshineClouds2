@@ -1,0 +1,83 @@
+[gd_scene format=3 uid="uid://vdcsmo2d0rio"]
+
+[ext_resource type="RDShaderFile" uid="uid://dx1y5cye1m1hu" path="res://addons/SunshineClouds2/SunshineCloudsCompute.glsl" id="1_304io"]
+[ext_resource type="CompressedTexture3D" uid="uid://dei12lsgrjpyu" path="res://addons/SunshineClouds2/NoiseTextures/curl_noise_varied.tga" id="2_f8vbv"]
+[ext_resource type="CompressedTexture3D" uid="uid://b3uyfsp4in821" path="res://addons/SunshineClouds2/NoiseTextures/bluenoise_Dither.png" id="3_ksqaf"]
+[ext_resource type="Texture2D" uid="uid://de2nsujnhdlg0" path="res://addons/SunshineClouds2/NoiseTextures/ExtraLargeScaleNoise.tres" id="4_gwrsq"]
+[ext_resource type="Texture2D" uid="uid://g02m2ewpwusq" path="res://addons/SunshineClouds2/NoiseTextures/HeightGradient.tres" id="5_kb7tu"]
+[ext_resource type="NoiseTexture3D" uid="uid://6ed3lvlpbqmg" path="res://addons/SunshineClouds2/NoiseTextures/LargeScaleNoise.tres" id="6_a54ab"]
+[ext_resource type="NoiseTexture3D" uid="uid://dxyewgt7o40m0" path="res://addons/SunshineClouds2/NoiseTextures/MediumScaleNoise.tres" id="7_nj60w"]
+[ext_resource type="RDShaderFile" uid="uid://cpef10h5lggny" path="res://addons/SunshineClouds2/SunshineCloudsPostCompute.msaa.glsl" id="8_304io"]
+[ext_resource type="RDShaderFile" uid="uid://crfpk8ta4qxsk" path="res://addons/SunshineClouds2/SunshineCloudsPreCompute.glsl" id="9_yahh2"]
+[ext_resource type="Script" uid="uid://dnblgqynq1t7l" path="res://addons/SunshineClouds2/SunshineClouds.gd" id="10_ydu8d"]
+[ext_resource type="NoiseTexture3D" uid="uid://bnck2kxeg5bkg" path="res://addons/SunshineClouds2/NoiseTextures/SmallScaleNoise.tres" id="11_ocsni"]
+[ext_resource type="Script" uid="uid://djusduuxf0voj" path="res://addons/SunshineClouds2/SunshineCloudsDriver.gd" id="12_f8jch"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_304io"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_f8vbv"]
+sky_material = SubResource("ProceduralSkyMaterial_304io")
+
+[sub_resource type="Environment" id="Environment_ksqaf"]
+background_mode = 2
+sky = SubResource("Sky_f8vbv")
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="CompositorEffect" id="CompositorEffect_gwrsq"]
+resource_local_to_scene = false
+resource_name = ""
+enabled = true
+effect_callback_type = 3
+access_resolved_color = true
+access_resolved_depth = true
+needs_motion_vectors = true
+needs_normal_roughness = false
+script = ExtResource("10_ydu8d")
+cloud_scale = 0.005
+clouds_coverage = 0.654
+cloud_floor = 0.0
+cloud_ceiling = 2.0
+dither_noise = ExtResource("3_ksqaf")
+height_gradient = ExtResource("5_kb7tu")
+extra_large_noise_patterns = ExtResource("4_gwrsq")
+large_scale_noise = ExtResource("6_a54ab")
+medium_scale_noise = ExtResource("7_nj60w")
+small_scale_noise = ExtResource("11_ocsni")
+curl_noise = ExtResource("2_f8vbv")
+pre_pass_compute_shader = ExtResource("9_yahh2")
+compute_shader = ExtResource("1_304io")
+post_pass_compute_shader = ExtResource("8_304io")
+wind_direction = Vector3(1, 0, 1)
+directional_lights_data = Array[Vector4]([Vector4(0.25, 0.86602545, -0.43301266, 12), Vector4(1, 1, 1, 1)])
+
+[sub_resource type="Compositor" id="Compositor_kb7tu"]
+compositor_effects = Array[CompositorEffect]([SubResource("CompositorEffect_gwrsq")])
+
+[sub_resource type="SphereMesh" id="SphereMesh_0srch"]
+radius = 50.0
+height = 100.0
+
+[node name="Node3D" type="Node3D" unique_id=357293222]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=2001282120]
+environment = SubResource("Environment_ksqaf")
+compositor = SubResource("Compositor_kb7tu")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=13076249]
+transform = Transform3D(-0.8660254, -0.43301278, 0.25, 0, 0.49999997, 0.86602545, -0.50000006, 0.75, -0.43301266, 0, 0, 0)
+shadow_enabled = true
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=406213424]
+mesh = SubResource("SphereMesh_0srch")
+
+[node name="SunshineCloudsDriverGD" type="Node" parent="." unique_id=1335999793 node_paths=PackedStringArray("tracked_directional_lights")]
+script = ExtResource("12_f8jch")
+update_continuously = true
+clouds_resource = SubResource("CompositorEffect_gwrsq")
+ambience_sample_environment = SubResource("Environment_ksqaf")
+tracked_directional_lights = [NodePath("../DirectionalLight3D")]
+tracked_directional_light_shadow_steps = Array[int]([12])
+metadata/_custom_type_script = "uid://djusduuxf0voj"
