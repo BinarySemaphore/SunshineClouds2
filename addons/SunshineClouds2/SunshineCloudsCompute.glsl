@@ -430,23 +430,18 @@ void main() {
 		return;
 	}
 	
-	vec2 depthUV = (uv + 0.5) / vec2(size);
-	float depth = texture(depth_image, depthUV).r * genericData.data.scale;
-
-	vec4 view = scene_data_block.data.inv_projection_matrix * vec4(depthUV*2.0-1.0,depth,1.0);
-	view.xyz /= view.w;
-	float linear_depth = length(view); //used to calculate depth based on the view angle, idk just works.
-	//4.4 doesn't work with this
-	if (linear_depth >= scene_data_block.data.z_far){ 
-		linear_depth *= 100.0;
-	}
-	linear_depth *= genericData.data.scale;
-	
+	vec2 clipUV = (uv + 0.5) / vec2(size);
+	float depth = texture(depth_image, clipUV).r;
 	// Convert screen coordinates to normalized device coordinates
-	vec2 clipUV = vec2(depthUV.x, depthUV.y);
-	vec2 ndc = clipUV * 2.0 - 1.0;	
+	vec4 ndc = vec4(clipUV * 2.0 - 1.0, depth, 1.0);
+
+	vec4 view = scene_data_block.data.inv_projection_matrix * ndc;
+	view.xyz /= view.w;
+	float linear_depth = -view.z / scene_data_block.data.z_far;
+	linear_depth *= 10000.0;
+	
 	// Convert NDC to view space coordinates
-	vec4 clipPos = vec4(ndc, 0.0, 1.0);
+	vec4 clipPos = vec4(ndc.xy, 0.0, 1.0);
 	vec4 viewPos = scene_data_block.data.inv_projection_matrix * clipPos;
 	viewPos.xyz /= viewPos.w;
 	
@@ -462,14 +457,14 @@ void main() {
 
 	// expirements with interleved gradient noise.
 	// float ditherScale = 40.037;
-	// vec3 ditherUV = vec3(depthUV.x * ditherScale , depthUV.y * ditherScale , genericData.data.time);
+	// vec3 ditherUV = vec3(clipUV.x * ditherScale , clipUV.y * ditherScale , genericData.data.time);
 	// float smallNoise = texture(dither_small, ditherUV).r;
 	// vec3 ign_noise_uv = vec3(float(uv.x), fract(genericData.data.time) * 2.0 - 1.0, float(uv.y));
 	// float ign_noise = fract(52.9829189 * fract(dot(ign_noise_uv, vec3(0.006711056, 0.00583715, 1.61803398875))));
 	// float ditherValue = ign_noise;
 
 	float ditherScale = 40.037;
-	vec3 ditherUV = vec3(depthUV.x * ditherScale , depthUV.y * ditherScale , genericData.data.time);
+	vec3 ditherUV = vec3(clipUV.x * ditherScale , clipUV.y * ditherScale , genericData.data.time);
 	float smallNoise = texture(dither_small, ditherUV).r;
 
 	float ditherValue = smallNoise;
@@ -482,7 +477,6 @@ void main() {
     float iOdMie = 0.0;
 	float atmosphericDensity = genericData.data.atmospheric_density;
 
-	const float atmosphericHeight = 40000.0;
 	const vec3 RayleighScatteringCoef = vec3(5.5e-6, 13.0e-6, 22.4e-6);
 	const float Rayleighscaleheight = 8e3;
 	const float MieScatteringCoef = 21e-6;
@@ -588,7 +582,7 @@ void main() {
 				// 		// Convert normalized device coordinates to screen space
 				// 		vec2 screen_position = ndc * 0.5 + 0.5;
 				// 		//screen_position = clamp(screen_position, vec2(0.0), vec2(1.0));
-				// 		screen_position = screen_position - depthUV;
+				// 		screen_position = screen_position - clipUV;
 				// 		ivec2 adjustedUV = ivec2(int(screen_position.x * size.x), int(screen_position.y * size.y));
 				// 		//float change = length(vec2(adjustedUV));
 				// 		adjustedUV += uv; //Size is the screen resolution.
@@ -918,12 +912,12 @@ void main() {
 	#endif
 
 	// Convert clip space to normalized device coordinates
-	ndc = (reprojectedScreenPos.xy / reprojectedScreenPos.w);
+	ndc.xy = (reprojectedScreenPos.xy / reprojectedScreenPos.w);
 
 	// Convert normalized device coordinates to screen space
-	vec2 screen_position = ndc * 0.5 + 0.5;
+	vec2 screen_position = ndc.xy * 0.5 + 0.5;
 	//screen_position = clamp(screen_position, vec2(0.0), vec2(1.0));
-	screen_position = screen_position - depthUV;
+	screen_position = screen_position - clipUV;
 
 	ivec2 adjustedUV = ivec2(int(screen_position.x * size.x), int(screen_position.y * size.y));
 	//float change = length(vec2(adjustedUV));
